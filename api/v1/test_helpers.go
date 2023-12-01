@@ -1,6 +1,9 @@
 package v1
 
 import (
+	"os"
+	"strconv"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,6 +21,14 @@ func CreateBaseYtsaurusResource(namespace string) *Ytsaurus {
 	execNodeVolumeSize, _ := resource.ParseQuantity("3Gi")
 	execNodeCPU, _ := resource.ParseQuantity("1")
 	execNodeMemory, _ := resource.ParseQuantity("2Gi")
+	var httpNodePort int32
+	if os.Getenv("YTOP_PROXY_PORT_K8S") != "" {
+		port, err := strconv.Atoi(os.Getenv("YTOP_PROXY_PORT_K8S"))
+		if err != nil {
+			panic(err)
+		}
+		httpNodePort = int32(port)
+	}
 
 	return &Ytsaurus{
 		ObjectMeta: metav1.ObjectMeta{
@@ -100,6 +111,7 @@ func CreateBaseYtsaurusResource(namespace string) *Ytsaurus {
 					InstanceSpec: InstanceSpec{
 						InstanceCount: 1,
 					},
+					HttpNodePort: &httpNodePort,
 				},
 			},
 			DataNodes: []DataNodesSpec{

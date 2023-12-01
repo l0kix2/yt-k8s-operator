@@ -18,10 +18,15 @@ package controllers
 
 import (
 	"context"
-	ptr "k8s.io/utils/pointer"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"go.uber.org/zap/zapcore"
+	"k8s.io/apimachinery/pkg/runtime"
+	ptr "k8s.io/utils/pointer"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -47,12 +52,18 @@ var testEnv *envtest.Environment
 var ctx context.Context
 var cancel context.CancelFunc
 
+var (
+	testScheme = runtime.NewScheme()
+)
+
 func TestAPIs(t *testing.T) {
 	if os.Getenv("YTSAURUS_ENABLE_E2E_TESTS") != "true" {
 		t.Skip("skipping E2E tests: set YTSAURUS_ENABLE_E2E_TESTS environment variable to 'true'")
 	}
 
 	RegisterFailHandler(Fail)
+
+	RunTestOperator("test1", "test2", "test3")
 
 	RunSpecsWithDefaultAndCustomReporters(t,
 		"Controller Suite",
@@ -92,3 +103,48 @@ var _ = AfterSuite(func() {
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
 })
+
+func RunTestOperator(namespaces ...string) {
+	setupLog := ctrl.Log.WithName("setup")
+	clusterv1.SchemeBuilder.Register(&clusterv1.Ytsaurus{}, &clusterv1.YtsaurusList{})
+
+	opts := zap.Options{
+		Development: true,
+		TimeEncoder: zapcore.ISO8601TimeEncoder,
+	}
+
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	managerOptions := ctrl.Options{
+		Scheme:                 testScheme,
+		MetricsBindAddress:     ":8080",
+		Port:                   9443,
+		HealthProbeBindAddress: ":8081",
+		LeaderElection:         false,
+		LeaderElectionID:       "test-6ab077f0.ytsaurus.tech",
+	}
+
+	//managerOptions.Namespace = namespace
+	managerOptions.NewCache = cache.MultiNamespacedCacheBuilder(namespaces)
+
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), managerOptions)
+	if err != nil {
+		setupLog.Error(err, "unable to start manager")
+		os.Exit(1)
+	}
+
+	if err = (&YtsaurusReconciler{
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor("ytsaurus-controller"),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Ytsaurus")
+		os.Exit(1)
+	}
+
+	setupLog.Info("starting manager")
+	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		setupLog.Error(err, "problem running manager")
+		os.Exit(1)
+	}
+}

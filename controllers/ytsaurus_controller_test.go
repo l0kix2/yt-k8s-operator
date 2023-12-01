@@ -3,12 +3,11 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"os"
+	"time"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	ytv1 "github.com/ytsaurus/yt-k8s-operator/api/v1"
-	"github.com/ytsaurus/yt-k8s-operator/pkg/components"
-	"github.com/ytsaurus/yt-k8s-operator/pkg/consts"
-	"github.com/ytsaurus/yt-k8s-operator/pkg/ytconfig"
 	"go.ytsaurus.tech/yt/go/ypath"
 	"go.ytsaurus.tech/yt/go/yt"
 	"go.ytsaurus.tech/yt/go/yt/ythttp"
@@ -16,7 +15,11 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"time"
+
+	ytv1 "github.com/ytsaurus/yt-k8s-operator/api/v1"
+	"github.com/ytsaurus/yt-k8s-operator/pkg/components"
+	"github.com/ytsaurus/yt-k8s-operator/pkg/consts"
+	"github.com/ytsaurus/yt-k8s-operator/pkg/ytconfig"
 )
 
 const (
@@ -25,29 +28,32 @@ const (
 )
 
 func getYtClient(g *ytconfig.Generator, namespace string) yt.Client {
-	httpProxyService := corev1.Service{}
-	Expect(k8sClient.Get(ctx,
-		types.NamespacedName{Name: g.GetHTTPProxiesServiceName(consts.DefaultHTTPProxyRole), Namespace: namespace},
-		&httpProxyService),
-	).Should(Succeed())
+	httpProxy := os.Getenv("YTOP_PROXY")
+	if httpProxy == "" {
+		httpProxyAddress := ""
+		httpProxyService := corev1.Service{}
+		Expect(k8sClient.Get(ctx,
+			types.NamespacedName{Name: g.GetHTTPProxiesServiceName(consts.DefaultHTTPProxyRole), Namespace: namespace},
+			&httpProxyService),
+		).Should(Succeed())
 
-	port := httpProxyService.Spec.Ports[0].NodePort
+		port := httpProxyService.Spec.Ports[0].NodePort
 
-	k8sNode := corev1.Node{}
-	Expect(k8sClient.Get(ctx,
-		types.NamespacedName{Name: "kind-control-plane", Namespace: namespace},
-		&k8sNode),
-	).Should(Succeed())
-
-	httpProxyAddress := ""
-	for _, address := range k8sNode.Status.Addresses {
-		if address.Type == corev1.NodeInternalIP {
-			httpProxyAddress = address.Address
+		k8sNode := corev1.Node{}
+		Expect(k8sClient.Get(ctx,
+			types.NamespacedName{Name: "kind-control-plane", Namespace: namespace},
+			&k8sNode),
+		).Should(Succeed())
+		for _, address := range k8sNode.Status.Addresses {
+			if address.Type == corev1.NodeInternalIP {
+				httpProxyAddress = address.Address
+			}
 		}
+		httpProxy = fmt.Sprintf("%s:%v", httpProxyAddress, port)
 	}
 
 	ytClient, err := ythttp.NewClient(&yt.Config{
-		Proxy:                 fmt.Sprintf("%s:%v", httpProxyAddress, port),
+		Proxy:                 httpProxy,
 		Token:                 consts.DefaultAdminPassword,
 		DisableProxyDiscovery: true,
 	})
