@@ -1,28 +1,52 @@
 package ytconfig
 
 import (
-	"go.ytsaurus.tech/library/go/ptr"
+	"strconv"
 	"testing"
 
-	v1 "github.com/ytsaurus/yt-k8s-operator/api/v1"
-	"github.com/ytsaurus/yt-k8s-operator/pkg/canonize"
+	"go.ytsaurus.tech/library/go/ptr"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	v1 "github.com/ytsaurus/yt-k8s-operator/api/v1"
+	"github.com/ytsaurus/yt-k8s-operator/pkg/canonize"
 )
 
-type Volume struct {
-	Name       string
-	MountPoint string
-	Size       string
-}
+var (
+	testLogRotationPeriod int64 = 900000
+	testTotalLogSize            = 10 * int64(1<<30)
+)
 
 func TestGetMasterConfig(t *testing.T) {
 	t.Helper()
-	var logRotationPeriod int64 = 900000
-	totalLogSize := 10 * int64(1<<30)
 
-	ytsaurus := &v1.Ytsaurus{
+	g := NewGenerator(getTestYtsaurus(), "fake.zone")
+	mc, _ := g.GetMasterConfig()
+
+	canonize.Assert(t, mc)
+}
+
+func TestGetMasterWithFixedHostsConfig(t *testing.T) {
+	t.Helper()
+
+	ytsaurus := getTestYtsaurus()
+	ytsaurus.Spec.MasterHostAddresses = map[string][]string{
+		strconv.Itoa(int(ytsaurus.Spec.PrimaryMasters.CellTag)): {
+			"host1.external.address",
+			"host2.external.address",
+			"host3.external.address",
+		},
+	}
+	g := NewGenerator(ytsaurus, "fake.zone")
+	mc, _ := g.GetMasterConfig()
+
+	canonize.Assert(t, mc)
+}
+
+func getTestYtsaurus() *v1.Ytsaurus {
+	return &v1.Ytsaurus{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "fake",
 			Name:      "test",
@@ -97,8 +121,8 @@ func TestGetMasterConfig(t *testing.T) {
 								Format:      v1.LogFormatPlainText,
 
 								RotationPolicy: &v1.LogRotationPolicy{
-									RotationPeriodMilliseconds: &logRotationPeriod,
-									MaxTotalSizeToKeep:         &totalLogSize,
+									RotationPeriodMilliseconds: &testLogRotationPeriod,
+									MaxTotalSizeToKeep:         &testTotalLogSize,
 								},
 							},
 							WriterType: v1.LogWriterTypeFile,
@@ -112,9 +136,4 @@ func TestGetMasterConfig(t *testing.T) {
 			},
 		},
 	}
-
-	g := NewGenerator(ytsaurus, "fake.zone")
-	mc, _ := g.GetMasterConfig()
-
-	canonize.Assert(t, mc)
 }
