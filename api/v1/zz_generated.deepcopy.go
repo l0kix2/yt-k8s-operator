@@ -1162,6 +1162,21 @@ func (in *YtsaurusSpec) DeepCopyInto(out *YtsaurusSpec) {
 		*out = new(RPCTransportSpec)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.MasterHostAddresses != nil {
+		in, out := &in.MasterHostAddresses, &out.MasterHostAddresses
+		*out = make(map[string][]string, len(*in))
+		for key, val := range *in {
+			var outVal []string
+			if val == nil {
+				(*out)[key] = nil
+			} else {
+				in, out := &val, &outVal
+				*out = make([]string, len(*in))
+				copy(*out, *in)
+			}
+			(*out)[key] = outVal
+		}
+	}
 	if in.ExtraPodAnnotations != nil {
 		in, out := &in.ExtraPodAnnotations, &out.ExtraPodAnnotations
 		*out = make(map[string]string, len(*in))

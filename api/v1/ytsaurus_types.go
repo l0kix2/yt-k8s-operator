@@ -445,6 +445,8 @@ type YtsaurusSpec struct {
 	//+optional
 	HostNetwork bool `json:"hostNetwork"`
 
+	MasterHostAddresses map[string][]string `json:"masterHostAddresses,omitempty"`
+
 	ExtraPodAnnotations map[string]string `json:"extraPodAnnotations,omitempty"`
 
 	Bootstrap *BootstrapSpec `json:"bootstrap,omitempty"`

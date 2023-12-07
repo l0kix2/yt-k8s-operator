@@ -11157,6 +11157,12 @@ spec:
               isManaged:
                 default: true
                 type: boolean
+              masterHostAddresses:
+                additionalProperties:
+                  items:
+                    type: string
+                  type: array
+                type: object
               nativeTransport:
                 description: Common config for native RPC bus transport.
                 properties:
