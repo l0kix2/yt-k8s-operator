@@ -17,6 +17,11 @@ import (
 var (
 	testLogRotationPeriod int64 = 900000
 	testTotalLogSize            = 10 * int64(1<<30)
+	masterHosts                 = []string{
+		"host1.external.address",
+		"host2.external.address",
+		"host3.external.address",
+	}
 )
 
 func TestGetMasterConfig(t *testing.T) {
@@ -31,16 +36,35 @@ func TestGetMasterConfig(t *testing.T) {
 func TestGetMasterWithFixedHostsConfig(t *testing.T) {
 	t.Helper()
 
-	ytsaurus := getTestYtsaurus()
-	ytsaurus.Spec.MasterHostAddresses = map[string][]string{
-		strconv.Itoa(int(ytsaurus.Spec.PrimaryMasters.CellTag)): {
-			"host1.external.address",
-			"host2.external.address",
-			"host3.external.address",
-		},
-	}
+	ytsaurus := getTestYtsaurusWithFixedMasterHosts()
 	g := NewGenerator(ytsaurus, "fake.zone")
 	mc, _ := g.GetMasterConfig()
+
+	canonize.Assert(t, mc)
+}
+
+func TestGetSchedulerConfig(t *testing.T) {
+	t.Helper()
+
+	ytsaurus := getTestYtsaurus()
+	ytsaurus.Spec.Schedulers = &v1.SchedulersSpec{
+		InstanceSpec: v1.InstanceSpec{InstanceCount: 1},
+	}
+	g := NewGenerator(ytsaurus, "fake.zone")
+	mc, _ := g.GetSchedulerConfig()
+
+	canonize.Assert(t, mc)
+}
+
+func TestGetSchedulerWithFixedMasterHostsConfig(t *testing.T) {
+	t.Helper()
+
+	ytsaurus := getTestYtsaurusWithFixedMasterHosts()
+	ytsaurus.Spec.Schedulers = &v1.SchedulersSpec{
+		InstanceSpec: v1.InstanceSpec{InstanceCount: 1},
+	}
+	g := NewGenerator(ytsaurus, "fake.zone")
+	mc, _ := g.GetSchedulerConfig()
 
 	canonize.Assert(t, mc)
 }
@@ -136,4 +160,12 @@ func getTestYtsaurus() *v1.Ytsaurus {
 			},
 		},
 	}
+}
+
+func getTestYtsaurusWithFixedMasterHosts() *v1.Ytsaurus {
+	ytsaurus := getTestYtsaurus()
+	ytsaurus.Spec.MasterHostAddresses = map[string][]string{
+		strconv.Itoa(int(ytsaurus.Spec.PrimaryMasters.CellTag)): masterHosts,
+	}
+	return ytsaurus
 }
