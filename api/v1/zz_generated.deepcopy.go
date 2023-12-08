@@ -599,6 +599,11 @@ func (in *LogRotationPolicy) DeepCopy() *LogRotationPolicy {
 func (in *MastersSpec) DeepCopyInto(out *MastersSpec) {
 	*out = *in
 	in.InstanceSpec.DeepCopyInto(&out.InstanceSpec)
+	if in.HostAddresses != nil {
+		in, out := &in.HostAddresses, &out.HostAddresses
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.MaxSnapshotCountToKeep != nil {
 		in, out := &in.MaxSnapshotCountToKeep, &out.MaxSnapshotCountToKeep
 		*out = new(int)
@@ -1161,21 +1166,6 @@ func (in *YtsaurusSpec) DeepCopyInto(out *YtsaurusSpec) {
 		in, out := &in.NativeTransport, &out.NativeTransport
 		*out = new(RPCTransportSpec)
 		(*in).DeepCopyInto(*out)
-	}
-	if in.MasterHostAddresses != nil {
-		in, out := &in.MasterHostAddresses, &out.MasterHostAddresses
-		*out = make(map[string][]string, len(*in))
-		for key, val := range *in {
-			var outVal []string
-			if val == nil {
-				(*out)[key] = nil
-			} else {
-				in, out := &val, &outVal
-				*out = make([]string, len(*in))
-				copy(*out, *in)
-			}
-			(*out)[key] = outVal
-		}
 	}
 	if in.ExtraPodAnnotations != nil {
 		in, out := &in.ExtraPodAnnotations, &out.ExtraPodAnnotations

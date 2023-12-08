@@ -3,7 +3,6 @@ package ytconfig
 import (
 	"fmt"
 	"path"
-	"strconv"
 
 	"go.ytsaurus.tech/yt/go/yson"
 	corev1 "k8s.io/api/core/v1"
@@ -51,12 +50,9 @@ func (g *Generator) getMasterPodFqdnSuffix() string {
 }
 
 func (g *Generator) getMasterAddresses() []string {
-	hosts := make([]string, 0)
+	hosts := g.ytsaurus.Spec.PrimaryMasters.HostAddresses
 
-	if g.ytsaurus.Spec.MasterHostAddresses != nil {
-		cellTag := strconv.Itoa(int(g.ytsaurus.Spec.PrimaryMasters.CellTag))
-		hosts = g.ytsaurus.Spec.MasterHostAddresses[cellTag]
-	} else {
+	if len(hosts) == 0 {
 		masterPodSuffix := g.getMasterPodFqdnSuffix()
 		for _, podName := range g.GetMasterPodNames() {
 			hosts = append(hosts, fmt.Sprintf("%s.%s",

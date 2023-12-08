@@ -7,14 +7,19 @@ import (
 
 	ptr "k8s.io/utils/pointer"
 
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+
 	ytv1 "github.com/ytsaurus/yt-k8s-operator/api/v1"
 	"github.com/ytsaurus/yt-k8s-operator/pkg/apiproxy"
 	"github.com/ytsaurus/yt-k8s-operator/pkg/consts"
 	"github.com/ytsaurus/yt-k8s-operator/pkg/labeller"
 	"github.com/ytsaurus/yt-k8s-operator/pkg/resources"
 	"github.com/ytsaurus/yt-k8s-operator/pkg/ytconfig"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
+)
+
+const (
+	defaultExternalHostnameLabel = "kubernetes.io/hostname"
 )
 
 // server manages common resources of YTsaurus cluster server components.
@@ -243,6 +248,39 @@ func (s *serverImpl) rebuildStatefulSet() *appsv1.StatefulSet {
 	if s.ytsaurus.GetResource().Spec.HostNetwork {
 		statefulSet.Spec.Template.Spec.HostNetwork = true
 		statefulSet.Spec.Template.Spec.DNSPolicy = corev1.DNSClusterFirstWithHostNet
+	}
+	if len(s.ytsaurus.GetResource().Spec.PrimaryMasters.HostAddresses) != 0 {
+		affinity := &corev1.Affinity{}
+		if statefulSet.Spec.Template.Spec.Affinity != nil {
+			affinity = statefulSet.Spec.Template.Spec.Affinity
+		}
+
+		nodeAffinity := &corev1.NodeAffinity{}
+		if affinity.NodeAffinity != nil {
+			nodeAffinity = affinity.NodeAffinity
+		}
+
+		selector := &corev1.NodeSelector{}
+		if nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+			selector = nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+		}
+
+		nodeHostnameLabel := s.ytsaurus.GetResource().Spec.PrimaryMasters.HostAddressLabel
+		if nodeHostnameLabel == "" {
+			nodeHostnameLabel = defaultExternalHostnameLabel
+		}
+		selector.NodeSelectorTerms = append(selector.NodeSelectorTerms, corev1.NodeSelectorTerm{
+			MatchExpressions: []corev1.NodeSelectorRequirement{
+				{
+					Key:      nodeHostnameLabel,
+					Operator: corev1.NodeSelectorOpNotIn,
+					Values:   s.ytsaurus.GetResource().Spec.PrimaryMasters.HostAddresses,
+				},
+			},
+		})
+		nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = selector
+		affinity.NodeAffinity = nodeAffinity
+		statefulSet.Spec.Template.Spec.Affinity = affinity
 	}
 
 	if s.caBundle != nil {

@@ -1,7 +1,6 @@
 package ytconfig
 
 import (
-	"strconv"
 	"testing"
 
 	"go.ytsaurus.tech/library/go/ptr"
@@ -15,9 +14,9 @@ import (
 )
 
 var (
-	testLogRotationPeriod int64 = 900000
-	testTotalLogSize            = 10 * int64(1<<30)
-	masterHosts                 = []string{
+	testLogRotationPeriod   int64 = 900000
+	testTotalLogSize              = 10 * int64(1<<30)
+	testMasterExternalHosts       = []string{
 		"host1.external.address",
 		"host2.external.address",
 		"host3.external.address",
@@ -164,8 +163,6 @@ func getTestYtsaurus() *v1.Ytsaurus {
 
 func getTestYtsaurusWithFixedMasterHosts() *v1.Ytsaurus {
 	ytsaurus := getTestYtsaurus()
-	ytsaurus.Spec.MasterHostAddresses = map[string][]string{
-		strconv.Itoa(int(ytsaurus.Spec.PrimaryMasters.CellTag)): masterHosts,
-	}
+	ytsaurus.Spec.PrimaryMasters.HostAddresses = testMasterExternalHosts
 	return ytsaurus
 }

@@ -11157,12 +11157,6 @@ spec:
               isManaged:
                 default: true
                 type: boolean
-              masterHostAddresses:
-                additionalProperties:
-                  items:
-                    type: string
-                  type: array
-                type: object
               nativeTransport:
                 description: Common config for native RPC bus transport.
                 properties:
@@ -11802,6 +11796,12 @@ spec:
                   enableAntiAffinity:
                     description: Deprecated. Use Affinity.PodAntiAffinity instead.
                     type: boolean
+                  hostAddressLabel:
+                    type: string
+                  hostAddresses:
+                    items:
+                      type: string
+                    type: array
                   image:
                     type: string
                   instanceCount:
@@ -22673,6 +22673,12 @@ spec:
                     enableAntiAffinity:
                       description: Deprecated. Use Affinity.PodAntiAffinity instead.
                       type: boolean
+                    hostAddressLabel:
+                      type: string
+                    hostAddresses:
+                      items:
+                        type: string
+                      type: array
                     image:
                       type: string
                     instanceCount:

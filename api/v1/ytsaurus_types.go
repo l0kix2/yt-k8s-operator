@@ -235,6 +235,9 @@ type MastersSpec struct {
 	InstanceSpec `json:",inline"`
 	CellTag      int16 `json:"cellTag"`
 
+	HostAddresses    []string `json:"hostAddresses,omitempty"`
+	HostAddressLabel string   `json:"hostAddressLabel,omitempty"`
+
 	MaxSnapshotCountToKeep  *int `json:"maxSnapshotCountToKeep,omitempty"`
 	MaxChangelogCountToKeep *int `json:"maxChangelogCountToKeep,omitempty"`
 }
@@ -444,8 +447,6 @@ type YtsaurusSpec struct {
 	//+kubebuilder:default:=false
 	//+optional
 	HostNetwork bool `json:"hostNetwork"`
-
-	MasterHostAddresses map[string][]string `json:"masterHostAddresses,omitempty"`
 
 	ExtraPodAnnotations map[string]string `json:"extraPodAnnotations,omitempty"`
 

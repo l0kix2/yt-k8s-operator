@@ -18,7 +18,6 @@ package v1
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -92,9 +91,9 @@ func (r *Ytsaurus) validateDiscovery(old *runtime.Object) field.ErrorList {
 func (r *Ytsaurus) validatePrimaryMasters(old *runtime.Object) field.ErrorList {
 	var allErrors field.ErrorList
 
-	allErrors = append(allErrors, r.validateInstanceSpec(r.Spec.PrimaryMasters.InstanceSpec, field.NewPath("spec").Child("primaryMasters"))...)
-
 	path := field.NewPath("spec").Child("primaryMasters")
+	allErrors = append(allErrors, r.validateInstanceSpec(r.Spec.PrimaryMasters.InstanceSpec, path)...)
+	allErrors = append(allErrors, r.validateHostAddresses(r.Spec.PrimaryMasters, path)...)
 
 	if FindFirstLocation(r.Spec.PrimaryMasters.Locations, LocationTypeMasterChangelogs) == nil {
 		allErrors = append(allErrors, field.NotFound(path.Child("locations"), LocationTypeMasterChangelogs))
@@ -121,6 +120,23 @@ func (r *Ytsaurus) validateSecondaryMasters(old *runtime.Object) field.ErrorList
 	for i, sm := range r.Spec.SecondaryMasters {
 		path := field.NewPath("spec").Child("secondaryMasters").Index(i)
 		allErrors = append(allErrors, r.validateInstanceSpec(sm.InstanceSpec, path)...)
+		allErrors = append(allErrors, r.validateHostAddresses(r.Spec.PrimaryMasters, path)...)
+	}
+
+	return allErrors
+}
+
+func (r *Ytsaurus) validateHostAddresses(masterSpec MastersSpec, fieldPath *field.Path) field.ErrorList {
+	var allErrors field.ErrorList
+
+	if !r.Spec.HostNetwork && len(masterSpec.HostAddresses) != 0 {
+		allErrors = append(
+			allErrors,
+			field.Required(
+				fieldPath,
+				"HostAddresses doesn't make sense without hostNetwork=true",
+			),
+		)
 	}
 
 	return allErrors
@@ -389,59 +405,6 @@ func (r *Ytsaurus) validateYQLAgents(old *runtime.Object) field.ErrorList {
 	return allErrors
 }
 
-func (r *Ytsaurus) validateMasterHostAddresses(_ *runtime.Object) field.ErrorList {
-	var allErrors field.ErrorList
-
-	if r.Spec.MasterHostAddresses == nil {
-		return allErrors
-	}
-
-	knownCellTags := make(map[string]struct{}, 0)
-	if r.Spec.PrimaryMasters.InstanceSpec.Image != nil {
-		knownCellTags[strconv.Itoa(int(r.Spec.PrimaryMasters.CellTag))] = struct{}{}
-	}
-	if len(r.Spec.SecondaryMasters) != 0 {
-		for _, master := range r.Spec.SecondaryMasters {
-			knownCellTags[strconv.Itoa(int(master.CellTag))] = struct{}{}
-		}
-	}
-
-	for cellTag, addresses := range r.Spec.MasterHostAddresses {
-		if _, isKnown := knownCellTags[cellTag]; !isKnown {
-			allErrors = append(
-				allErrors,
-				field.Invalid(
-					field.NewPath("spec").Child("masterHostAddresses"),
-					cellTag,
-					fmt.Sprintf("unknown cell tag %s", cellTag),
-				),
-			)
-		}
-		if len(addresses) == 0 {
-			allErrors = append(
-				allErrors,
-				field.Invalid(
-					field.NewPath("spec").Child("masterHostAddresses"),
-					addresses,
-					fmt.Sprintf("empty list of master host addresses for cell tag %s", cellTag),
-				),
-			)
-		}
-	}
-
-	if !r.Spec.HostNetwork {
-		allErrors = append(
-			allErrors,
-			field.Required(
-				field.NewPath("spec").Child("masterHostAddresses"),
-				"masterHostAddresses doesn't make sense without hostNetwork=true",
-			),
-		)
-	}
-
-	return allErrors
-}
-
 //////////////////////////////////////////////////
 
 func (r *Ytsaurus) validateInstanceSpec(instanceSpec InstanceSpec, path *field.Path) field.ErrorList {
@@ -498,7 +461,6 @@ func (r *Ytsaurus) validateYtsaurus(old *runtime.Object) field.ErrorList {
 	allErrors = append(allErrors, r.validateQueueAgents(old)...)
 	allErrors = append(allErrors, r.validateSpyt(old)...)
 	allErrors = append(allErrors, r.validateYQLAgents(old)...)
-	allErrors = append(allErrors, r.validateMasterHostAddresses(old)...)
 
 	return allErrors
 }
