@@ -133,8 +133,8 @@ func (r *Ytsaurus) validateHostAddresses(masterSpec MastersSpec, fieldPath *fiel
 		allErrors = append(
 			allErrors,
 			field.Required(
-				fieldPath,
-				"HostAddresses doesn't make sense without hostNetwork=true",
+				field.NewPath("spec").Child("hostNetwork"),
+				fmt.Sprintf("%s doesn't make sense without hostNetwork=true", fieldPath.Child("hostAddresses").String()),
 			),
 		)
 	}
