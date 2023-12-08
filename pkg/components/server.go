@@ -249,39 +249,6 @@ func (s *serverImpl) rebuildStatefulSet() *appsv1.StatefulSet {
 		statefulSet.Spec.Template.Spec.HostNetwork = true
 		statefulSet.Spec.Template.Spec.DNSPolicy = corev1.DNSClusterFirstWithHostNet
 	}
-	if len(s.ytsaurus.GetResource().Spec.PrimaryMasters.HostAddresses) != 0 {
-		affinity := &corev1.Affinity{}
-		if statefulSet.Spec.Template.Spec.Affinity != nil {
-			affinity = statefulSet.Spec.Template.Spec.Affinity
-		}
-
-		nodeAffinity := &corev1.NodeAffinity{}
-		if affinity.NodeAffinity != nil {
-			nodeAffinity = affinity.NodeAffinity
-		}
-
-		selector := &corev1.NodeSelector{}
-		if nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
-			selector = nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
-		}
-
-		nodeHostnameLabel := s.ytsaurus.GetResource().Spec.PrimaryMasters.HostAddressLabel
-		if nodeHostnameLabel == "" {
-			nodeHostnameLabel = defaultExternalHostnameLabel
-		}
-		selector.NodeSelectorTerms = append(selector.NodeSelectorTerms, corev1.NodeSelectorTerm{
-			MatchExpressions: []corev1.NodeSelectorRequirement{
-				{
-					Key:      nodeHostnameLabel,
-					Operator: corev1.NodeSelectorOpNotIn,
-					Values:   s.ytsaurus.GetResource().Spec.PrimaryMasters.HostAddresses,
-				},
-			},
-		})
-		nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = selector
-		affinity.NodeAffinity = nodeAffinity
-		statefulSet.Spec.Template.Spec.Affinity = affinity
-	}
 
 	if s.caBundle != nil {
 		s.caBundle.AddVolume(&statefulSet.Spec.Template.Spec)
