@@ -4,15 +4,16 @@ import (
 	"context"
 	"log"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/yaml"
+	ptr "k8s.io/utils/pointer"
+
 	ytv1 "github.com/ytsaurus/yt-k8s-operator/api/v1"
 	"github.com/ytsaurus/yt-k8s-operator/pkg/apiproxy"
 	"github.com/ytsaurus/yt-k8s-operator/pkg/consts"
 	"github.com/ytsaurus/yt-k8s-operator/pkg/labeller"
 	"github.com/ytsaurus/yt-k8s-operator/pkg/resources"
 	"github.com/ytsaurus/yt-k8s-operator/pkg/ytconfig"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/yaml"
-	ptr "k8s.io/utils/pointer"
 )
 
 type execNode struct {
@@ -104,6 +105,7 @@ func (n *execNode) doSync(ctx context.Context, dry bool) (ComponentStatus, error
 				}
 				*containers = append(*containers, sidecar)
 			}
+			n.server.setStatefulSet(statefulSet)
 			err = n.server.Sync(ctx)
 		}
 		return WaitingStatus(SyncStatusPending, "components"), err

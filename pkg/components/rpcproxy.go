@@ -3,13 +3,14 @@ package components
 import (
 	"context"
 
+	v1 "k8s.io/api/core/v1"
+
 	ytv1 "github.com/ytsaurus/yt-k8s-operator/api/v1"
 	"github.com/ytsaurus/yt-k8s-operator/pkg/apiproxy"
 	"github.com/ytsaurus/yt-k8s-operator/pkg/consts"
 	"github.com/ytsaurus/yt-k8s-operator/pkg/labeller"
 	"github.com/ytsaurus/yt-k8s-operator/pkg/resources"
 	"github.com/ytsaurus/yt-k8s-operator/pkg/ytconfig"
-	v1 "k8s.io/api/core/v1"
 )
 
 type rpcProxy struct {
@@ -120,6 +121,7 @@ func (rp *rpcProxy) doSync(ctx context.Context, dry bool) (ComponentStatus, erro
 				secret.AddVolume(&statefulSet.Spec.Template.Spec)
 				secret.AddVolumeMount(&statefulSet.Spec.Template.Spec.Containers[0])
 			}
+			rp.server.setStatefulSet(statefulSet)
 			err = rp.server.Sync(ctx)
 		}
 		return WaitingStatus(SyncStatusPending, "components"), err

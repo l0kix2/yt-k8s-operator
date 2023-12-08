@@ -255,16 +255,16 @@ func (m *master) Sync(ctx context.Context) error {
 }
 
 func (m *master) doServerSync(ctx context.Context) error {
-	statefulSet := m.server.buildStatefulSet()
-	// TODO: (sibirev) it is not nice to modify other object inner state
-	m.modifyStatefulSet(statefulSet)
+	ss := m.server.buildStatefulSet()
+	m.addNodeAffinity(ss)
+	m.server.setStatefulSet(ss)
 	return m.server.Sync(ctx)
 }
 
-func (m *master) modifyStatefulSet(statefulSet *appsv1.StatefulSet) *appsv1.StatefulSet {
+func (m *master) addNodeAffinity(statefulSet *appsv1.StatefulSet) {
 	primaryMastersSpec := m.ytsaurus.GetResource().Spec.PrimaryMasters
 	if len(primaryMastersSpec.HostAddresses) == 0 {
-		return statefulSet
+		return
 	}
 
 	affinity := &corev1.Affinity{}
@@ -298,7 +298,6 @@ func (m *master) modifyStatefulSet(statefulSet *appsv1.StatefulSet) *appsv1.Stat
 	nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = selector
 	affinity.NodeAffinity = nodeAffinity
 	statefulSet.Spec.Template.Spec.Affinity = affinity
-	return statefulSet
 }
 
 func (m *master) exitReadOnly(ctx context.Context, dry bool) (*ComponentStatus, error) {

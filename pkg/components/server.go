@@ -30,7 +30,7 @@ type server interface {
 	needUpdate() bool
 	needSync() bool
 	buildStatefulSet() *appsv1.StatefulSet
-	rebuildStatefulSet() *appsv1.StatefulSet
+	setStatefulSet(*appsv1.StatefulSet)
 }
 
 type serverImpl struct {
@@ -143,7 +143,7 @@ func (s *serverImpl) Sync(ctx context.Context) error {
 	_ = s.configHelper.Build()
 	_ = s.headlessService.Build()
 	_ = s.monitoringService.Build()
-	_ = s.buildStatefulSet()
+	s.buildStatefulSetInternal()
 
 	return resources.Sync(ctx,
 		s.statefulSet,
@@ -185,12 +185,24 @@ func (s *serverImpl) arePodsReady(ctx context.Context) bool {
 	return s.statefulSet.ArePodsReady(ctx, s.instanceSpec.MinReadyInstanceCount)
 }
 
+// buildStatefulSet returns a copy of statefulSet struct.
 func (s *serverImpl) buildStatefulSet() *appsv1.StatefulSet {
-	if s.builtStatefulSet != nil {
-		return s.builtStatefulSet
+	ss := s.builtStatefulSet
+	if ss == nil {
+		ss = s.rebuildStatefulSet()
 	}
+	return ss.DeepCopy()
+}
 
-	return s.rebuildStatefulSet()
+func (s *serverImpl) setStatefulSet(ss *appsv1.StatefulSet) {
+	s.builtStatefulSet = ss
+}
+
+func (s *serverImpl) buildStatefulSetInternal() {
+	if s.builtStatefulSet != nil {
+		return
+	}
+	s.rebuildStatefulSet()
 }
 
 func (s *serverImpl) rebuildStatefulSet() *appsv1.StatefulSet {
