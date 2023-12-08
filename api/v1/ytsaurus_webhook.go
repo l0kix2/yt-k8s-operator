@@ -129,12 +129,24 @@ func (r *Ytsaurus) validateSecondaryMasters(old *runtime.Object) field.ErrorList
 func (r *Ytsaurus) validateHostAddresses(masterSpec MastersSpec, fieldPath *field.Path) field.ErrorList {
 	var allErrors field.ErrorList
 
+	hostAddressesFieldPath := fieldPath.Child("hostAddresses")
 	if !r.Spec.HostNetwork && len(masterSpec.HostAddresses) != 0 {
 		allErrors = append(
 			allErrors,
 			field.Required(
 				field.NewPath("spec").Child("hostNetwork"),
-				fmt.Sprintf("%s doesn't make sense without hostNetwork=true", fieldPath.Child("hostAddresses").String()),
+				fmt.Sprintf("%s doesn't make sense without hostNetwork=true", hostAddressesFieldPath.String()),
+			),
+		)
+	}
+
+	if len(masterSpec.HostAddresses) != 0 && len(masterSpec.HostAddresses) != int(masterSpec.InstanceCount) {
+		allErrors = append(
+			allErrors,
+			field.Invalid(
+				hostAddressesFieldPath,
+				masterSpec.HostAddresses,
+				fmt.Sprintf("%s list length shoud be equal to instanceCount", hostAddressesFieldPath.String()),
 			),
 		)
 	}
