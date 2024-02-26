@@ -50,6 +50,7 @@ jobs:
     uses: ./.github/workflows/subflow_run_e2e.yaml
 
   stop-vm:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     name: Stop VM
     needs:
       - start-vm
